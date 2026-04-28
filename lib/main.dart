@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const Zapp());
+  runApp(const ZVpnApp());
 }
 
-class Zapp extends StatelessWidget {
-  const ZApp({Key? key}) : super(key: key);
+class ZVpnApp extends StatelessWidget {
+  const ZVpnApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Z',
+      title: 'Z VPN',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF161C2D), // Dark background color
+        scaffoldBackgroundColor: const Color(0xFF161C2D), 
         primaryColor: Colors.blueAccent,
       ),
       home: const VpnHomeScreen(),
@@ -31,7 +31,7 @@ class VpnHomeScreen extends StatefulWidget {
 
 class _VpnHomeScreenState extends State<VpnHomeScreen> {
   int _bottomNavIndex = 0;
-  bool isOutlineSelected = true; // To toggle between Outline and V2Ray
+  bool isOutlineSelected = true; 
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +43,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         title: const Text(
           'Z VPN',
           style: TextStyle(
-            color: Colors.amber, // Gold color
+            color: Colors.amber, 
             fontWeight: FontWeight.bold,
             letterSpacing: 2.0,
             fontSize: 24,
@@ -69,7 +69,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // Key Type Toggle Button
             Container(
               height: 50,
               decoration: BoxDecoration(
@@ -122,8 +121,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            
-            // Key Prefix Text
             Row(
               children: [
                 const Icon(Icons.vpn_key, size: 16, color: Colors.grey),
@@ -135,8 +132,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
               ],
             ),
             const SizedBox(height: 10),
-
-            // Input Text Field
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF232B40),
@@ -153,21 +148,15 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                 ),
               ),
             ),
-            
             const SizedBox(height: 40),
-
-            // Status Text
             const Text(
               'ချိတ်ဆက်ထားခြင်းမရှိပါ',
               style: TextStyle(color: Colors.grey, fontSize: 18),
             ),
-            
             const Spacer(),
-
-            // Connect Button
             GestureDetector(
               onTap: () {
-                // TODO: Add connect logic here
+                // Connect logic လာပါမည်
               },
               child: Container(
                 width: 150,
@@ -204,8 +193,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
           ],
         ),
       ),
-      
-      // Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF161C2D),
         selectedItemColor: Colors.blueAccent,
