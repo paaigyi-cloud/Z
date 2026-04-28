@@ -10,13 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.19.0"
           channel: "stable"
+
+      # ဒီအဆင့်က လိုအပ်တဲ့ android folder ကို အလိုအလျောက် ဆောက်ပေးမှာပါ
+      - run: |
+          flutter create . --project-name=z_vpn --platforms=android
+          git checkout lib/main.dart pubspec.yaml
+
       - run: flutter pub get
       - run: flutter build apk --release
+
       - uses: actions/upload-artifact@v4
         with:
           name: Z-VPN-Release-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+
