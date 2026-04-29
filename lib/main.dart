@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// V2Ray အင်ဂျင်ကို လှမ်းခေါ်ထားခြင်း
 import 'package:flutter_v2ray/flutter_v2ray.dart';
 
 void main() {
@@ -33,7 +32,7 @@ class VpnHomeScreen extends StatefulWidget {
 
 class _VpnHomeScreenState extends State<VpnHomeScreen> {
   int _bottomNavIndex = 0;
-  bool isOutlineSelected = false; // V2Ray ကို အဓိကထားထားပါသည်
+  bool isOutlineSelected = false; 
   bool isConnecting = false;
   bool isConnected = false;
   String connectionStatus = 'ချိတ်ဆက်ထားခြင်းမရှိပါ';
@@ -44,7 +43,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // V2Ray အင်ဂျင်ကို အသင့်ပြင်ခြင်း
     flutterV2ray = FlutterV2ray(
       onStatusChanged: (status) {
         if (mounted) {
@@ -70,7 +68,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
   }
 
   void _toggleConnection() async {
-    // ချိတ်ဆက်ထားပြီးသားဆိုရင် ဖြတ်တောက်မည်
     if (isConnected) {
       await flutterV2ray.stopV2Ray();
       return;
@@ -85,7 +82,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
       return;
     }
 
-    // ဖုန်း၏ VPN Permission တောင်းခံခြင်း
     if (await flutterV2ray.requestPermission()) {
       setState(() {
         isConnecting = true;
@@ -93,10 +89,19 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
       });
 
       try {
-        // တကယ့် VPN စတင်ချိတ်ဆက်ခြင်း
+        // ဤနေရာတွင် လင့်ခ်များကို JSON သို့ ပြောင်းလဲပေးမည့် Code ထည့်သွင်းထားပါသည်
+        String jsonConfig = key;
+        String remark = "Z-VPN Server";
+
+        if (key.startsWith("vmess://") || key.startsWith("vless://") || key.startsWith("ss://") || key.startsWith("trojan://")) {
+          var parsedNode = FlutterV2ray.parseFromURL(key);
+          jsonConfig = parsedNode.getFullConfiguration();
+        }
+
+        // ပြောင်းလဲပြီးသား JSON ကို အင်ဂျင်ထဲသို့ ထည့်၍ ချိတ်ဆက်ခြင်း
         await flutterV2ray.startV2Ray(
-          remark: "Z-VPN Server",
-          config: key,
+          remark: remark,
+          config: jsonConfig,
         );
       } catch (e) {
         setState(() {
@@ -150,8 +155,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            
-            // Key Type Toggle Button
             Container(
               height: 50,
               decoration: BoxDecoration(
@@ -222,8 +225,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            
-            // Input Text Field
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF232B40),
@@ -256,7 +257,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                 ],
               ),
             ),
-            
             const SizedBox(height: 40),
             Text(
               connectionStatus,
@@ -274,7 +274,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                 height: 150,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  // ချိတ်ဆက်ထားရင် အနီရောင်ပြောင်းမည်
                   color: isConnected ? Colors.redAccent : (isConnecting ? Colors.grey : Colors.blueAccent),
                   boxShadow: [
                     BoxShadow(
