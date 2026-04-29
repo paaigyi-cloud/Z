@@ -4,6 +4,7 @@ import 'package:flutter_v2ray/flutter_v2ray.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +74,71 @@ class _ZVpnAppState extends State<ZVpnApp> {
         primaryColor: Colors.blueAccent,
       ),
       home: const VpnHomeScreen(),
+    );
+  }
+}
+
+// ==========================================
+// လုံခြုံရေး Browser စာမျက်နှာအသစ် (Desktop Site အမြဲပေါ်မည်)
+// ==========================================
+class DesktopBrowserScreen extends StatefulWidget {
+  final bool isEnglish;
+  const DesktopBrowserScreen({Key? key, required this.isEnglish}) : super(key: key);
+
+  @override
+  State<DesktopBrowserScreen> createState() => _DesktopBrowserScreenState();
+}
+
+class _DesktopBrowserScreenState extends State<DesktopBrowserScreen> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      // ကွန်ပျူတာကနေ ဝင်သကဲ့သို့ အမြဲတမ်း ဟန်ဆောင်ထားမည့်စာကြောင်း (Desktop Site Force)
+      ..setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) {
+            if (mounted) setState(() => _isLoading = true);
+          },
+          onPageFinished: (String url) {
+            if (mounted) setState(() => _isLoading = false);
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse('https://www.google.com'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.isEnglish ? 'Secure Browser' : 'လုံခြုံသော ဘရောက်ဇာ', style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 18)),
+        leading: IconButton(
+          icon: Icon(Icons.close, color: isDark ? Colors.white : Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: isDark ? Colors.white : Colors.black87),
+            onPressed: () => _controller.reload(),
+          )
+        ],
+      ),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(color: Colors.blueAccent),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -864,18 +930,11 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
               }
             }
           } else if (index == 2) {
-            // "Chrome Custom Tabs" (In-App Browser View) သို့ ပြောင်းလဲထားပါသည်
-            final Uri url = Uri.parse('https://www.google.com');
-            if (!await launchUrl(
-              url, 
-              mode: LaunchMode.inAppBrowserView, // Google က တရားဝင်ခွင့်ပြုထားသော အလုံခြုံဆုံးနည်းလမ်း
-            )) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(isEnglish ? 'Could not launch browser' : 'ဘရောက်ဇာကို ဖွင့်၍မရပါ')),
-                );
-              }
-            }
+            // "In-App WebView" ဖြင့် Desktop Site သီးသန့် အမြဲပွင့်မည့်စာမျက်နှာသို့ သွားမည်
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => DesktopBrowserScreen(isEnglish: isEnglish)),
+            );
           } else {
             setState(() {
               _bottomNavIndex = index;
