@@ -14,7 +14,7 @@ class ZVpnApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF161C2D), 
+        scaffoldBackgroundColor: const Color(0xFF161C2D),
         primaryColor: Colors.blueAccent,
       ),
       home: const VpnHomeScreen(),
@@ -31,7 +31,36 @@ class VpnHomeScreen extends StatefulWidget {
 
 class _VpnHomeScreenState extends State<VpnHomeScreen> {
   int _bottomNavIndex = 0;
-  bool isOutlineSelected = true; 
+  bool isOutlineSelected = true;
+  bool isConnecting = false;
+
+  final TextEditingController _keyController = TextEditingController();
+
+  void _connectVpn() async {
+    String key = _keyController.text.trim();
+
+    if (key.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ကျေးဇူးပြု၍ Key ကို အရင်ထည့်ပါ!')),
+      );
+      return;
+    }
+
+    setState(() {
+      isConnecting = true;
+    });
+
+    // ချိတ်ဆက်နေပုံ စမ်းသပ်ရန် ၃ စက္ကန့် စောင့်ခိုင်းထားခြင်း
+    await Future.delayed(const Duration(seconds: 3));
+
+    setState(() {
+      isConnecting = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('VPN အင်ဂျင် မချိတ်ဆက်ရသေးပါ!')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +72,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         title: const Text(
           'Z VPN',
           style: TextStyle(
-            color: Colors.amber, 
+            color: Colors.amber,
             fontWeight: FontWeight.bold,
             letterSpacing: 2.0,
             fontSize: 24,
@@ -69,11 +98,15 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
+            
+            // Key Type Toggle Button (ဘောင်ကွတ်ထားသော ဒီဇိုင်းအသစ်)
             Container(
               height: 50,
               decoration: BoxDecoration(
                 color: const Color(0xFF232B40),
                 borderRadius: BorderRadius.circular(10),
+                // ဤနေရာတွင် အပြာရောင်ဘောင် ထည့်ထားပါသည်
+                border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 1.5),
               ),
               child: Row(
                 children: [
@@ -87,7 +120,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: isOutlineSelected ? Colors.blueAccent : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8), // ဘောင်အထဲဝင်ရန် နည်းနည်းလျှော့ထားသည်
                         ),
                         alignment: Alignment.center,
                         child: const Text('Outline Key', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -104,7 +137,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: !isOutlineSelected ? Colors.blueAccent : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         alignment: Alignment.center,
                         child: Text(
@@ -132,59 +165,85 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
               ],
             ),
             const SizedBox(height: 10),
+            
+            // Input Text Field (အပေါ်လိုင်းအထူ နှင့် ဘောင်ဒီဇိုင်းအသစ်)
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF232B40),
                 borderRadius: BorderRadius.circular(10),
+                // ဘေးပတ်ပတ်လည် ခဲရောင်ဘောင် အပါးလေး
+                border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1.0),
               ),
-              child: TextField(
-                maxLines: 4,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'ဒီနေရာမှာ Key ကို Paste ချပါ...',
-                  hintStyle: TextStyle(color: Colors.grey.shade600),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.all(16),
-                ),
+              child: Column(
+                children: [
+                  // အစ်ကိုပြထားသောပုံမှ အပေါ်ဘက်ရှိ အရောင်လိုင်းလေး
+                  Container(
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: Colors.blueAccent,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(9),
+                        topRight: Radius.circular(9),
+                      ),
+                    ),
+                  ),
+                  TextField(
+                    controller: _keyController,
+                    maxLines: 4,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'ဒီနေရာမှာ Key ကို Paste ချပါ...',
+                      hintStyle: TextStyle(color: Colors.grey.shade600),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(16),
+                    ),
+                  ),
+                ],
               ),
             ),
+            
             const SizedBox(height: 40),
-            const Text(
-              'ချိတ်ဆက်ထားခြင်းမရှိပါ',
-              style: TextStyle(color: Colors.grey, fontSize: 18),
+            Text(
+              isConnecting ? 'ချိတ်ဆက်နေသည်...' : 'ချိတ်ဆက်ထားခြင်းမရှိပါ',
+              style: TextStyle(
+                color: isConnecting ? Colors.amber : Colors.grey, 
+                fontSize: 18
+              ),
             ),
             const Spacer(),
             GestureDetector(
-              onTap: () {
-                // Connect logic လာပါမည်
-              },
+              onTap: isConnecting ? null : _connectVpn,
               child: Container(
                 width: 150,
                 height: 150,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.blueAccent,
+                  color: isConnecting ? Colors.grey : Colors.blueAccent,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blueAccent.withOpacity(0.4),
+                      color: isConnecting ? Colors.transparent : Colors.blueAccent.withOpacity(0.4),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.bolt, size: 50, color: Colors.white),
-                    SizedBox(height: 10),
-                    Text(
-                      'ချိတ်ဆက်မည်',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    if (isConnecting)
+                      const CircularProgressIndicator(color: Colors.white)
+                    else ...[
+                      const Icon(Icons.bolt, size: 50, color: Colors.white),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'ချိတ်ဆက်မည်',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+                    ]
                   ],
                 ),
               ),
@@ -221,4 +280,3 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     );
   }
 }
- 
