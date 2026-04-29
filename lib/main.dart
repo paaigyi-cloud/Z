@@ -103,7 +103,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bypassedApps = prefs.getStringList('bypassed_apps') ?? [];
     
     try {
-      // ဤနေရာတွင် includeSystemApps ကို true ပြောင်းထားသဖြင့် App အားလုံးပေါ်လာပါမည်
       List<Application> apps = await DeviceApps.getInstalledApplications(
         includeAppIcons: true,
         includeSystemApps: true, 
@@ -179,8 +178,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               widget.isEnglish 
-                ? 'Selected apps will NOT use the VPN connection (e.g., Banking apps).' 
-                : 'အောက်တွင် အမှန်ခြစ်ထားသော ဘဏ် App များသည် VPN ကို မသုံးဘဲ ရိုးရိုးအင်တာနက်ဖြင့်သာ အလုပ်လုပ်ပါမည်။',
+                // စာသားများကို ပြင်ဆင်ထားပါသည်
+                ? 'Selected apps will NOT use the VPN connection.' 
+                : 'အောက်တွင် အမှန်ခြစ်ထားသော App များသည် VPN ကို မသုံးဘဲ ရိုးရိုးအင်တာနက်ဖြင့်သာ အလုပ်လုပ်ပါမည်။',
               style: const TextStyle(fontSize: 13, color: Colors.grey),
             ),
           ),
