@@ -92,17 +92,14 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         String jsonConfig = key;
         String serverRemark = "Z-VPN Server";
 
-        // ssconf:// ကို သုံးပါက သတိပေးရန်
         if (key.startsWith("ssconf://")) {
           throw Exception("ssconf:// အစား ss:// ဖြင့်စသော Outline Key ကိုသာ အသုံးပြုပါ။");
         }
 
-        // Outline (ss) နှင့် V2Ray (vmess, vless) လင့်ခ်များကို ဘာသာပြန်ခြင်း
         if (key.startsWith("vmess://") || key.startsWith("vless://") || key.startsWith("ss://") || key.startsWith("trojan://")) {
           var parsedNode = FlutterV2ray.parseFromURL(key);
           jsonConfig = parsedNode.getFullConfiguration();
           
-          // လင့်ခ်အမျိုးအစားပေါ်မူတည်၍ နာမည်ခွဲခြားခြင်း
           if (key.startsWith("ss://")) {
             serverRemark = "Outline Server";
           } else {
@@ -110,7 +107,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
           }
         }
 
-        // အင်ဂျင်သို့ ချိတ်ဆက်ရန် ပေးပို့ခြင်း
         await flutterV2ray.startV2Ray(
           remark: serverRemark,
           config: jsonConfig,
@@ -359,9 +355,3 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     );
   }
 }
-
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 8617ec1830a69eb465e27cb85284a9fe73870e2b
