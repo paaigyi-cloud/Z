@@ -89,18 +89,30 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
       });
 
       try {
-        // ဤနေရာတွင် လင့်ခ်များကို JSON သို့ ပြောင်းလဲပေးမည့် Code ထည့်သွင်းထားပါသည်
         String jsonConfig = key;
-        String remark = "Z-VPN Server";
+        String serverRemark = "Z-VPN Server";
 
+        // ssconf:// ကို သုံးပါက သတိပေးရန်
+        if (key.startsWith("ssconf://")) {
+          throw Exception("ssconf:// အစား ss:// ဖြင့်စသော Outline Key ကိုသာ အသုံးပြုပါ။");
+        }
+
+        // Outline (ss) နှင့် V2Ray (vmess, vless) လင့်ခ်များကို ဘာသာပြန်ခြင်း
         if (key.startsWith("vmess://") || key.startsWith("vless://") || key.startsWith("ss://") || key.startsWith("trojan://")) {
           var parsedNode = FlutterV2ray.parseFromURL(key);
           jsonConfig = parsedNode.getFullConfiguration();
+          
+          // လင့်ခ်အမျိုးအစားပေါ်မူတည်၍ နာမည်ခွဲခြားခြင်း
+          if (key.startsWith("ss://")) {
+            serverRemark = "Outline Server";
+          } else {
+            serverRemark = "V2Ray Server";
+          }
         }
 
-        // ပြောင်းလဲပြီးသား JSON ကို အင်ဂျင်ထဲသို့ ထည့်၍ ချိတ်ဆက်ခြင်း
+        // အင်ဂျင်သို့ ချိတ်ဆက်ရန် ပေးပို့ခြင်း
         await flutterV2ray.startV2Ray(
-          remark: remark,
+          remark: serverRemark,
           config: jsonConfig,
         );
       } catch (e) {
@@ -109,7 +121,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
           connectionStatus = 'ချိတ်ဆက်မှု မအောင်မြင်ပါ';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Key မှားယွင်းနေပါသည် (သို့) ချိတ်ဆက်၍မရပါ')),
+          SnackBar(content: Text(e.toString().contains("ssconf://") ? "ss:// ဖြင့်စသော Key ကိုသာ ထည့်ပါ" : 'Key မှားယွင်းနေပါသည် (သို့) ချိတ်ဆက်၍မရပါ')),
         );
       }
     } else {
@@ -219,7 +231,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                 const Icon(Icons.vpn_key, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
                 Text(
-                  isOutlineSelected ? 'ss:// (သို့) ssconf://' : 'vmess:// (သို့) vless://',
+                  isOutlineSelected ? 'ss:// (သို့) Outline Key' : 'vmess:// (သို့) vless://',
                   style: const TextStyle(color: Colors.grey),
                 ),
               ],
