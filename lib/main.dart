@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_v2ray/flutter_v2ray.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:installed_apps/installed_apps.dart';
-import 'package:installed_apps/app_info.dart';
+import 'package:device_apps/device_apps.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,7 +88,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  List<AppInfo> installedApps = [];
+  List<Application> installedApps = [];
   List<String> bypassedApps = [];
   bool isLoadingApps = true;
 
@@ -104,13 +103,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bypassedApps = prefs.getStringList('bypassed_apps') ?? [];
     
     try {
-      // ဖုန်းထဲရှိ App များကို ဆွဲထုတ်ခြင်း
-      List<AppInfo> apps = await InstalledApps.getInstalledApps(
-        excludeSystemApps: true,
-        withIcon: true,
+      // ဖုန်းထဲရှိ App များကို device_apps library ဖြင့် ဆွဲထုတ်ခြင်း
+      List<Application> apps = await DeviceApps.getInstalledApplications(
+        includeAppIcons: true,
+        includeSystemApps: false,
+        onlyAppsWithLaunchIntent: true,
       );
       // အက္ခရာစဉ်အတိုင်း စီပေးခြင်း
-      apps.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      apps.sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
       installedApps = apps;
     } catch (e) {
       // ignore
@@ -199,8 +199,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 var app = installedApps[index];
                 bool isBypassed = bypassedApps.contains(app.packageName);
                 return ListTile(
-                  leading: app.icon != null ? Image.memory(app.icon!, width: 40, height: 40) : const Icon(Icons.android, color: Colors.green),
-                  title: Text(app.name),
+                  leading: app is ApplicationWithIcon ? Image.memory(app.icon, width: 40, height: 40) : const Icon(Icons.android, color: Colors.green),
+                  title: Text(app.appName),
                   subtitle: Text(app.packageName, style: const TextStyle(fontSize: 10, color: Colors.grey)),
                   trailing: Checkbox(
                     value: isBypassed,
@@ -445,7 +445,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         await flutterV2ray.startV2Ray(
           remark: serverRemark,
           config: jsonConfig,
-          blockedApps: bypassedApps, // ဤနေရာတွင် ဘဏ် App များကို VPN မှ ဖယ်ထုတ်ပေးပါသည်
+          blockedApps: bypassedApps, // ဘဏ် App များကို ဤနေရာတွင် VPN မှ ဖယ်ထုတ်ပေးပါသည်
           proxyOnly: false,
         );
       } catch (e) {
