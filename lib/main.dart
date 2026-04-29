@@ -855,15 +855,24 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         currentIndex: _bottomNavIndex,
         onTap: (index) async {
           if (index == 1) {
-            // Servers ကိုနှိပ်လျှင် ဆာဗာစာရင်း ပေါ်လာမည်
-            _showSavedKeysBottomSheet(isEnglish);
+            // Telegram ကို နှိပ်လျှင် Group သို့ ဖွင့်ပေးမည်
+            final Uri url = Uri.parse('https://t.me/zvpnt');
+            if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(isEnglish ? 'Could not open Telegram' : 'တယ်လီဂရမ်ကို ဖွင့်၍မရပါ')),
+                );
+              }
+            }
           } else if (index == 2) {
             // Browser ကိုနှိပ်လျှင် ဖုန်း၏ မူလ Browser မှ Google ကို ဖွင့်ပေးမည်
             final Uri url = Uri.parse('https://www.google.com');
             if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(isEnglish ? 'Could not launch browser' : 'ဘရောက်ဇာကို ဖွင့်၍မရပါ')),
-              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(isEnglish ? 'Could not launch browser' : 'ဘရောက်ဇာကို ဖွင့်၍မရပါ')),
+                );
+              }
             }
           } else {
             setState(() {
@@ -877,8 +886,8 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
             label: 'VPN',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.dns),
-            label: isEnglish ? 'Servers' : 'ဆာဗာများ',
+            icon: const Icon(Icons.telegram), // Telegram အိုင်ကွန် ပြောင်းထားပါသည်
+            label: isEnglish ? 'Telegram' : 'တယ်လီဂရမ်', // စာသား ပြောင်းထားပါသည်
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.language),
