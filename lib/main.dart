@@ -91,6 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   List<Application> installedApps = [];
   List<String> bypassedApps = [];
   bool isLoadingApps = true;
+  String _searchQuery = "";
 
   @override
   void initState() {
@@ -130,10 +131,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
     prefs.setStringList('bypassed_apps', bypassedApps);
   }
 
+  // ကိုယ်တိုင် Package ထည့်သွင်းမည့် Dialog
+  void _showManualAddDialog() {
+    TextEditingController manualController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF232B40) : Colors.white,
+          title: Text(widget.isEnglish ? "Add App Manually" : "App ကိုယ်တိုင်ထည့်ရန်", style: const TextStyle(fontSize: 18)),
+          content: TextField(
+            controller: manualController,
+            decoration: InputDecoration(
+              hintText: widget.isEnglish ? "e.g., com.facebook.katana" : "Package Name ထည့်ပါ (ဥပမာ - com.kbz.pay)",
+              hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(widget.isEnglish ? "Cancel" : "ပယ်ဖျက်မည်", style: const TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                String pkg = manualController.text.trim();
+                if (pkg.isNotEmpty) {
+                  _toggleBypassApp(pkg, true);
+                  Navigator.pop(context);
+                }
+              },
+              child: Text(widget.isEnglish ? "Add" : "ထည့်မည်", style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = ZVpnApp.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Search လုပ်ထားသော App များကို စစ်ထုတ်ခြင်း
+    List<Application> filteredApps = installedApps.where((app) {
+      return app.appName.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+
+    // စာရင်းထဲတွင်မပါသော်လည်း ကိုယ်တိုင်ထည့်ထားသော App များကို သီးသန့်ဆွဲထုတ်ခြင်း
+    List<String> hiddenBypassed = bypassedApps.where((pkg) {
+      return !installedApps.any((app) => app.packageName == pkg);
+    }).toList();
+    
+    int totalItems = hiddenBypassed.length + filteredApps.length;
     
     return Scaffold(
       appBar: AppBar(
@@ -142,8 +193,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          // App ကိုယ်တိုင်ထည့်ရန် (+) ခလုတ်
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline, color: Colors.blueAccent),
+            onPressed: _showManualAddDialog,
+            tooltip: widget.isEnglish ? "Add Manually" : "ကိုယ်တိုင်ထည့်ရန်",
+          )
+        ],
       ),
-      body: ListView(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 10),
           ListTile(
@@ -168,47 +228,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              widget.isEnglish ? 'Split Tunneling (Bypass Apps)' : 'App များကို ရှောင်ကွင်းမည်',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+            padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.isEnglish ? 'Split Tunneling (Bypass Apps)' : 'App များကို ရှောင်ကွင်းမည်',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                ),
+              ],
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               widget.isEnglish 
-                // စာသားများကို ပြင်ဆင်ထားပါသည်
-                ? 'Selected apps will NOT use the VPN connection.' 
-                : 'အောက်တွင် အမှန်ခြစ်ထားသော App များသည် VPN ကို မသုံးဘဲ ရိုးရိုးအင်တာနက်ဖြင့်သာ အလုပ်လုပ်ပါမည်။',
+                ? 'Selected apps will NOT use the VPN connection. Click (+) to add hidden apps.' 
+                : 'အောက်တွင် အမှန်ခြစ်ထားသော App များသည် VPN ကို မသုံးဘဲ ရိုးရိုးအင်တာနက်ဖြင့်သာ အလုပ်လုပ်ပါမည်။ လိုချင်သော App မပေါ်ပါက အပေါ်ရှိ (+) ကိုနှိပ်၍ ကိုယ်တိုင်ထည့်နိုင်ပါသည်။',
               style: const TextStyle(fontSize: 13, color: Colors.grey),
             ),
           ),
-          const SizedBox(height: 10),
-          if (isLoadingApps)
-            const Center(child: Padding(padding: EdgeInsets.all(20.0), child: CircularProgressIndicator()))
-          else if (installedApps.isEmpty)
-            Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text(widget.isEnglish ? 'No apps found.' : 'App များ ရှာမတွေ့ပါ။')))
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: installedApps.length,
-              itemBuilder: (context, index) {
-                var app = installedApps[index];
-                bool isBypassed = bypassedApps.contains(app.packageName);
-                return ListTile(
-                  leading: app is ApplicationWithIcon ? Image.memory(app.icon, width: 40, height: 40) : const Icon(Icons.android, color: Colors.green),
-                  title: Text(app.appName),
-                  subtitle: Text(app.packageName, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  trailing: Checkbox(
-                    value: isBypassed,
-                    activeColor: Colors.redAccent,
-                    onChanged: (val) => _toggleBypassApp(app.packageName, val ?? false),
-                  ),
-                );
-              },
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Container(
+              height: 45,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF232B40) : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              ),
+              child: TextField(
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                decoration: InputDecoration(
+                  hintText: widget.isEnglish ? 'Search apps...' : 'App အမည်ဖြင့် ရှာဖွေရန်...',
+                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
+          ),
+          // App List
+          Expanded(
+            child: isLoadingApps
+              ? const Center(child: CircularProgressIndicator())
+              : (totalItems == 0)
+                ? Center(child: Text(widget.isEnglish ? 'No apps found.' : 'App များ ရှာမတွေ့ပါ။', style: const TextStyle(color: Colors.grey)))
+                : ListView.builder(
+                    itemCount: totalItems,
+                    itemBuilder: (context, index) {
+                      // ကိုယ်တိုင်ထည့်ထားသော App များကို အပေါ်ဆုံးတွင် ပြသမည်
+                      if (index < hiddenBypassed.length) {
+                        String pkg = hiddenBypassed[index];
+                        return ListTile(
+                          leading: const CircleAvatar(
+                            backgroundColor: Colors.blueAccent,
+                            child: Icon(Icons.android, color: Colors.white),
+                          ),
+                          title: Text(widget.isEnglish ? 'Manually Added App' : 'ကိုယ်တိုင်ထည့်ထားသော App'),
+                          subtitle: Text(pkg, style: const TextStyle(fontSize: 11, color: Colors.amber)),
+                          trailing: Checkbox(
+                            value: true,
+                            activeColor: Colors.redAccent,
+                            onChanged: (val) => _toggleBypassApp(pkg, val ?? false),
+                          ),
+                        );
+                      }
+                      
+                      // ဖုန်းထဲမှ ပုံမှန် App များ
+                      var app = filteredApps[index - hiddenBypassed.length];
+                      bool isBypassed = bypassedApps.contains(app.packageName);
+                      return ListTile(
+                        leading: app is ApplicationWithIcon 
+                            ? Image.memory(app.icon, width: 40, height: 40) 
+                            : const Icon(Icons.android, color: Colors.green),
+                        title: Text(app.appName),
+                        subtitle: Text(app.packageName, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                        trailing: Checkbox(
+                          value: isBypassed,
+                          activeColor: Colors.redAccent,
+                          onChanged: (val) => _toggleBypassApp(app.packageName, val ?? false),
+                        ),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
     );
