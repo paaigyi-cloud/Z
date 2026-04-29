@@ -865,9 +865,16 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
               }
             }
           } else if (index == 2) {
-            // Browser ကိုနှိပ်လျှင် ဖုန်း၏ မူလ Browser မှ Google ကို ဖွင့်ပေးမည်
+            // Browser ကို "In-App WebView" (App တွင်း လုံခြုံရေး ဘရောက်ဇာ) ဖြင့် ဖွင့်မည်
             final Uri url = Uri.parse('https://www.google.com');
-            if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+            if (!await launchUrl(
+              url, 
+              mode: LaunchMode.inAppWebView, // ဤနေရာတွင် In-App WebView သို့ ပြောင်းထားပါသည်
+              webViewConfiguration: const WebViewConfiguration(
+                enableJavaScript: true,
+                enableDomStorage: true,
+              ),
+            )) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(isEnglish ? 'Could not launch browser' : 'ဘရောက်ဇာကို ဖွင့်၍မရပါ')),
@@ -886,8 +893,8 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
             label: 'VPN',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.telegram), // Telegram အိုင်ကွန် ပြောင်းထားပါသည်
-            label: isEnglish ? 'Telegram' : 'တယ်လီဂရမ်', // စာသား ပြောင်းထားပါသည်
+            icon: const Icon(Icons.telegram), 
+            label: isEnglish ? 'Telegram' : 'တယ်လီဂရမ်', 
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.language),
