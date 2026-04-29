@@ -12,6 +12,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   flutter_v2ray: ^1.0.10
   shared_preferences: ^2.2.2
+  installed_apps: ^2.1.1
 
 flutter:
   uses-material-design: true
