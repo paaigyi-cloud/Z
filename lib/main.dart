@@ -77,7 +77,7 @@ class _ZVpnAppState extends State<ZVpnApp> {
 }
 
 // ==========================================
-// Settings စာမျက်နှာ (App ရှောင်ကွင်းသည့် စနစ်အပါအဝင်)
+// Settings စာမျက်နှာ
 // ==========================================
 class SettingsScreen extends StatefulWidget {
   final bool isEnglish;
@@ -103,13 +103,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bypassedApps = prefs.getStringList('bypassed_apps') ?? [];
     
     try {
-      // ဖုန်းထဲရှိ App များကို device_apps library ဖြင့် ဆွဲထုတ်ခြင်း
+      // ဤနေရာတွင် includeSystemApps ကို true ပြောင်းထားသဖြင့် App အားလုံးပေါ်လာပါမည်
       List<Application> apps = await DeviceApps.getInstalledApplications(
         includeAppIcons: true,
-        includeSystemApps: false,
+        includeSystemApps: true, 
         onlyAppsWithLaunchIntent: true,
       );
-      // အက္ခရာစဉ်အတိုင်း စီပေးခြင်း
       apps.sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
       installedApps = apps;
     } catch (e) {
@@ -234,7 +233,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
   
   String _actualKey = ""; 
   
-  // Key စာရင်းများကို မှတ်သားရန်
   List<String> outlineKeys = [];
   List<String> v2rayKeys = [];
   String activeOutlineKey = "";
@@ -320,7 +318,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     return "Z-VPN Server";
   }
 
-  // သိမ်းထားသော Key စာရင်းများကို အောက်မှ ပေါ်လာစေမည့် UI စနစ်
   void _showSavedKeysBottomSheet(bool isEnglish) {
     List<String> currentList = isOutlineSelected ? outlineKeys : v2rayKeys;
     showModalBottomSheet(
@@ -438,14 +435,13 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
           jsonConfig = parsedNode.getFullConfiguration();
         }
 
-        // ရှောင်ကွင်းထားသော App စာရင်းကို Storage မှ ပြန်ယူခြင်း
         final prefs = await SharedPreferences.getInstance();
         List<String> bypassedApps = prefs.getStringList('bypassed_apps') ?? [];
 
         await flutterV2ray.startV2Ray(
           remark: serverRemark,
           config: jsonConfig,
-          blockedApps: bypassedApps, // ဘဏ် App များကို ဤနေရာတွင် VPN မှ ဖယ်ထုတ်ပေးပါသည်
+          blockedApps: bypassedApps,
           proxyOnly: false,
         );
       } catch (e) {
@@ -670,7 +666,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                 ],
               ),
             ),
-            // ဆာဗာစာရင်းကြည့်ရန် ခလုတ်
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
