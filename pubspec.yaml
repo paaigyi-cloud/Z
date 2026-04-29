@@ -10,7 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
+  flutter_v2ray: any
 
 flutter:
   uses-material-design: true
+
 
