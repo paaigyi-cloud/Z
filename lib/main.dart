@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_v2ray/flutter_v2ray.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const ZVpnApp());
@@ -38,8 +39,11 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
   bool isConnected = false;
   String connectionStatus = 'ချိတ်ဆက်ထားခြင်းမရှိပါ';
 
-  // တကယ့် Key အရှည်ကြီးကို နောက်ကွယ်မှာ ဖွက်ပြီး သိမ်းထားမည့်နေရာ
   String _actualKey = ""; 
+  
+  // ဖုန်း Storage ထဲတွင် မှတ်ထားမည့် Key များ
+  String _savedOutlineKey = "";
+  String _savedV2rayKey = "";
 
   final TextEditingController _keyController = TextEditingController();
   late FlutterV2ray flutterV2ray;
@@ -47,6 +51,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSavedKeys(); // App စဖွင့်သည်နှင့် သိမ်းထားသော Key များကို ပြန်ခေါ်မည်
     flutterV2ray = FlutterV2ray(
       onStatusChanged: (status) {
         if (mounted) {
@@ -67,11 +72,43 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     _initV2Ray();
   }
 
+  // ဖုန်း Storage ထဲမှ Key များကို ဆွဲထုတ်ခြင်း
+  Future<void> _loadSavedKeys() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _savedOutlineKey = prefs.getString('outline_key') ?? "";
+      _savedV2rayKey = prefs.getString('v2ray_key') ?? "";
+      _updateDisplayKey();
+    });
+  }
+
+  // ဖုန်း Storage ထဲသို့ Key များ အသေသိမ်းဆည်းခြင်း
+  Future<void> _saveKeyToStorage(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (isOutlineSelected) {
+      prefs.setString('outline_key', key);
+      _savedOutlineKey = key;
+    } else {
+      prefs.setString('v2ray_key', key);
+      _savedV2rayKey = key;
+    }
+  }
+
+  // Tab ပြောင်းတိုင်း သက်ဆိုင်ရာ Key ကို ပြသပေးခြင်း
+  void _updateDisplayKey() {
+    String currentKey = isOutlineSelected ? _savedOutlineKey : _savedV2rayKey;
+    _actualKey = currentKey;
+    if (currentKey.isNotEmpty) {
+      _keyController.text = _extractName(currentKey);
+    } else {
+      _keyController.text = "";
+    }
+  }
+
   Future<void> _initV2Ray() async {
     await flutterV2ray.initializeV2Ray();
   }
 
-  // Key ထဲမှ ဆာဗာနာမည်ကို အလိုအလျောက် ဆွဲထုတ်မည့် Function
   String _extractName(String key) {
     try {
       if (key.contains("#")) {
@@ -86,7 +123,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         }
       }
     } catch (e) {
-      // ဘာသာပြန်၍မရပါက Default အတိုင်းထားမည်
+      // ignore
     }
     
     if (key.startsWith("ss://")) return "Outline Server";
@@ -103,7 +140,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
       return;
     }
 
-    // ဖွက်ထားသော key ရှိလျှင် ၎င်းကိုသုံးမည်၊ မရှိလျှင် text box ထဲကစာကို သုံးမည်
     String keyToUse = _actualKey.isNotEmpty ? _actualKey : _keyController.text.trim();
 
     if (keyToUse.isEmpty) {
@@ -134,7 +170,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         }
 
         await flutterV2ray.startV2Ray(
-          remark: serverRemark, // နာမည်အဖြစ် ပြောင်းထားသော စာသားကို အင်ဂျင်သို့ ပေးပို့မည်
+          remark: serverRemark,
           config: jsonConfig,
         );
       } catch (e) {
@@ -203,6 +239,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                       onTap: () {
                         setState(() {
                           isOutlineSelected = true;
+                          _updateDisplayKey(); // Outline Tab သို့ ပြောင်းပါက Outline Key ပြမည်
                         });
                       },
                       child: Container(
@@ -226,6 +263,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                       onTap: () {
                         setState(() {
                           isOutlineSelected = false;
+                          _updateDisplayKey(); // V2Ray Tab သို့ ပြောင်းပါက V2Ray Key ပြမည်
                         });
                       },
                       child: Container(
@@ -279,22 +317,22 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                   ),
                   TextField(
                     controller: _keyController,
-                    maxLines: _actualKey.isNotEmpty ? 1 : 4, // Key ထည့်လိုက်ရင် (၁) ကြောင်းတည်း ဖြစ်သွားမည်
+                    maxLines: _actualKey.isNotEmpty ? 1 : 4,
                     style: TextStyle(
                       color: _actualKey.isNotEmpty ? Colors.amber : Colors.white, 
                       fontWeight: _actualKey.isNotEmpty ? FontWeight.bold : FontWeight.normal,
                       fontSize: _actualKey.isNotEmpty ? 18 : 14,
                     ),
-                    textAlign: _actualKey.isNotEmpty ? TextAlign.center : TextAlign.start, // နာမည်ကို အလယ်တွင်ထားမည်
+                    textAlign: _actualKey.isNotEmpty ? TextAlign.center : TextAlign.start,
                     onChanged: (value) {
                       String trimmed = value.trim();
-                      // Key အစစ် Paste ချလိုက်ကြောင်း စစ်ဆေးခြင်း
                       if (trimmed.startsWith("ss://") || trimmed.startsWith("vmess://") || trimmed.startsWith("vless://") || trimmed.startsWith("trojan://")) {
                         setState(() {
                           _actualKey = trimmed;
                         });
+                        _saveKeyToStorage(trimmed); // အသစ်ထည့်လိုက်သော Key ကို Storage ထဲ သိမ်းမည်
+                        
                         String name = _extractName(trimmed);
-                        // Key အစား နာမည်ကို အလိုအလျောက် အစားထိုးပြသမည်
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           _keyController.text = name;
                           _keyController.selection = TextSelection.fromPosition(TextPosition(offset: name.length));
@@ -303,6 +341,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                         setState(() {
                           _actualKey = "";
                         });
+                        _saveKeyToStorage(""); // ရှင်းလင်းလိုက်ပါက Storage ထဲမှပါ ဖျက်မည်
                       }
                     },
                     decoration: InputDecoration(
@@ -310,13 +349,13 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                       hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                      // Key ဝင်သွားပါက ဖျက်ရန် (X) ခလုတ်လေး ပေါ်လာမည်
                       suffixIcon: _actualKey.isNotEmpty 
                         ? IconButton(
                             icon: const Icon(Icons.cancel, color: Colors.grey),
                             onPressed: () {
                               setState(() {
                                 _actualKey = "";
+                                _saveKeyToStorage(""); // ခလုတ်နှိပ်၍ ဖျက်ပါက Storage ထဲမှပါ ဖျက်မည်
                               });
                               _keyController.clear();
                             },
