@@ -16,10 +16,11 @@ jobs:
           flutter-version: "3.19.0"
           channel: "stable"
 
-      # ဒီအဆင့်က လိုအပ်တဲ့ android folder ကို အလိုအလျောက် ဆောက်ပေးမှာပါ
+      # ဘယ်လိုပုံစံနဲ့ပဲ ရေးထားရေးထား အတင်းအဓမ္မ Version 21 သို့ ပြောင်းခိုင်းမည့် အမိန့်ဖြစ်ပါသည်
       - run: |
           flutter create . --project-name=z_vpn --platforms=android
           git checkout lib/main.dart pubspec.yaml
+          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle
 
       - run: flutter pub get
       - run: flutter build apk --release
@@ -28,4 +29,3 @@ jobs:
         with:
           name: Z-VPN-Release-APK
           path: build/app/outputs/flutter-apk/app-release.apk
-
