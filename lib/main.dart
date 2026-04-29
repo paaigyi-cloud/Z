@@ -3,30 +3,222 @@ import 'package:flutter/material.dart';
 import 'package:flutter_v2ray/flutter_v2ray.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const ZVpnApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final isDarkMode = prefs.getBool('isDarkMode') ?? true;
+  final isEnglish = prefs.getBool('isEnglish') ?? false;
+  runApp(ZVpnApp(initialDarkMode: isDarkMode, initialEnglish: isEnglish));
 }
 
-class ZVpnApp extends StatelessWidget {
-  const ZVpnApp({Key? key}) : super(key: key);
+class ZVpnApp extends StatefulWidget {
+  final bool initialDarkMode;
+  final bool initialEnglish;
+  const ZVpnApp({Key? key, required this.initialDarkMode, required this.initialEnglish}) : super(key: key);
+
+  static _ZVpnAppState? of(BuildContext context) => context.findAncestorStateOfType<_ZVpnAppState>();
+
+  @override
+  State<ZVpnApp> createState() => _ZVpnAppState();
+}
+
+class _ZVpnAppState extends State<ZVpnApp> {
+  late bool isDarkMode;
+  late bool isEnglish;
+
+  @override
+  void initState() {
+    super.initState();
+    isDarkMode = widget.initialDarkMode;
+    isEnglish = widget.initialEnglish;
+  }
+
+  void toggleTheme(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isDarkMode = value;
+      prefs.setBool('isDarkMode', value);
+    });
+  }
+
+  void toggleLanguage(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isEnglish = value;
+      prefs.setBool('isEnglish', value);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Z VPN',
       debugShowCheckedModeBanner: false,
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFF0F2F5),
+        primaryColor: Colors.blueAccent,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          iconTheme: IconThemeData(color: Colors.black87),
+        ),
+      ),
+      darkTheme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF161C2D),
         primaryColor: Colors.blueAccent,
       ),
-      home: const VpnHomeScreen(),
+      home: VpnHomeScreen(isEnglish: isEnglish),
     );
   }
 }
 
+// ==========================================
+// Settings စာမျက်နှာ
+// ==========================================
+class SettingsScreen extends StatefulWidget {
+  final bool isEnglish;
+  const SettingsScreen({Key? key, required this.isEnglish}) : super(key: key);
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  List<AppInfo> installedApps = [];
+  List<String> bypassedApps = [];
+  bool isLoadingApps = true;
+  late FlutterV2ray flutterV2ray;
+
+  @override
+  void initState() {
+    super.initState();
+    flutterV2ray = FlutterV2ray(onStatusChanged: (status) {});
+    _loadBypassedApps();
+  }
+
+  Future<void> _loadBypassedApps() async {
+    final prefs = await SharedPreferences.getInstance();
+    bypassedApps = prefs.getStringList('bypassed_apps') ?? [];
+    
+    // ဖုန်းထဲရှိ App များကို ဆွဲထုတ်ခြင်း
+    try {
+      var coreApps = await flutterV2ray.getAllApps();
+      installedApps = coreApps;
+    } catch (e) {
+      //
+    }
+    setState(() {
+      isLoadingApps = false;
+    });
+  }
+
+  void _toggleBypassApp(String packageName, bool bypass) async {
+    setState(() {
+      if (bypass) {
+        if (!bypassedApps.contains(packageName)) bypassedApps.add(packageName);
+      } else {
+        bypassedApps.remove(packageName);
+      }
+    });
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setStringList('bypassed_apps', bypassedApps);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = ZVpnApp.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.isEnglish ? 'Settings' : 'ဆက်တင်များ', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: ListView(
+        children: [
+          // Theme အလင်းအမှောင်
+          ListTile(
+            leading: Icon(isDark ? Icons.dark_mode : Icons.light_mode, color: Colors.blueAccent),
+            title: Text(widget.isEnglish ? 'Dark Mode' : 'အမှောင်ပုံစံ'),
+            trailing: Switch(
+              value: appState?.isDarkMode ?? true,
+              activeColor: Colors.blueAccent,
+              onChanged: (val) => appState?.toggleTheme(val),
+            ),
+          ),
+          const Divider(),
+          // ဘာသာစကား (မြန်မာ / English)
+          ListTile(
+            leading: const Icon(Icons.language, color: Colors.blueAccent),
+            title: Text(widget.isEnglish ? 'Language' : 'ဘာသာစကား'),
+            subtitle: Text(widget.isEnglish ? 'English' : 'မြန်မာ'),
+            trailing: Switch(
+              value: appState?.isEnglish ?? false,
+              activeColor: Colors.blueAccent,
+              onChanged: (val) => appState?.toggleLanguage(val),
+            ),
+          ),
+          const Divider(),
+          // App များ ရှောင်ကွင်းရန် ခေါင်းစဉ်
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              widget.isEnglish ? 'Split Tunneling (Bypass Apps)' : 'App များကို ရှောင်ကွင်းမည် (Split Tunneling)',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              widget.isEnglish 
+                ? 'Selected apps will NOT use the VPN connection.' 
+                : 'အောက်တွင် အမှန်ခြစ်ထားသော App များသည် VPN ကို အသုံးမပြုဘဲ ရိုးရိုးအင်တာနက်ဖြင့်သာ အလုပ်လုပ်ပါမည်။',
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // App စာရင်း ပြသခြင်း
+          if (isLoadingApps)
+            const Center(child: Padding(padding: EdgeInsets.all(20.0), child: CircularProgressIndicator()))
+          else if (installedApps.isEmpty)
+            Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text(widget.isEnglish ? 'No apps found.' : 'App များ ရှာမတွေ့ပါ။')))
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: installedApps.length,
+              itemBuilder: (context, index) {
+                var app = installedApps[index];
+                bool isBypassed = bypassedApps.contains(app.packageName);
+                return ListTile(
+                  leading: app.icon != null ? Image.memory(app.icon!, width: 40, height: 40) : const Icon(Icons.android),
+                  title: Text(app.appName ?? app.packageName ?? 'Unknown App'),
+                  trailing: Checkbox(
+                    value: isBypassed,
+                    activeColor: Colors.redAccent,
+                    onChanged: (val) => _toggleBypassApp(app.packageName!, val ?? false),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// ပင်မ VPN စာမျက်နှာ
+// ==========================================
 class VpnHomeScreen extends StatefulWidget {
-  const VpnHomeScreen({Key? key}) : super(key: key);
+  final bool isEnglish;
+  const VpnHomeScreen({Key? key, required this.isEnglish}) : super(key: key);
 
   @override
   State<VpnHomeScreen> createState() => _VpnHomeScreenState();
@@ -37,11 +229,8 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
   bool isOutlineSelected = true; 
   bool isConnecting = false;
   bool isConnected = false;
-  String connectionStatus = 'ချိတ်ဆက်ထားခြင်းမရှိပါ';
-
-  String _actualKey = ""; 
   
-  // ဖုန်း Storage ထဲတွင် မှတ်ထားမည့် Key များ
+  String _actualKey = ""; 
   String _savedOutlineKey = "";
   String _savedV2rayKey = "";
 
@@ -51,7 +240,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSavedKeys(); // App စဖွင့်သည်နှင့် သိမ်းထားသော Key များကို ပြန်ခေါ်မည်
+    _loadSavedKeys();
     flutterV2ray = FlutterV2ray(
       onStatusChanged: (status) {
         if (mounted) {
@@ -59,11 +248,9 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
             if (status.state == "CONNECTED") {
               isConnecting = false;
               isConnected = true;
-              connectionStatus = 'ချိတ်ဆက်ထားပါသည်';
             } else if (status.state == "DISCONNECTED") {
               isConnecting = false;
               isConnected = false;
-              connectionStatus = 'ချိတ်ဆက်ထားခြင်းမရှိပါ';
             }
           });
         }
@@ -72,7 +259,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     _initV2Ray();
   }
 
-  // ဖုန်း Storage ထဲမှ Key များကို ဆွဲထုတ်ခြင်း
   Future<void> _loadSavedKeys() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -82,7 +268,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     });
   }
 
-  // ဖုန်း Storage ထဲသို့ Key များ အသေသိမ်းဆည်းခြင်း
   Future<void> _saveKeyToStorage(String key) async {
     final prefs = await SharedPreferences.getInstance();
     if (isOutlineSelected) {
@@ -94,7 +279,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     }
   }
 
-  // Tab ပြောင်းတိုင်း သက်ဆိုင်ရာ Key ကို ပြသပေးခြင်း
   void _updateDisplayKey() {
     String currentKey = isOutlineSelected ? _savedOutlineKey : _savedV2rayKey;
     _actualKey = currentKey;
@@ -122,15 +306,12 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
           return json["ps"];
         }
       }
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
     
     if (key.startsWith("ss://")) return "Outline Server";
     if (key.startsWith("vless://")) return "V2Ray (VLESS) Server";
     if (key.startsWith("vmess://")) return "V2Ray (VMess) Server";
     if (key.startsWith("trojan://")) return "Trojan Server";
-    
     return "Z-VPN Server";
   }
 
@@ -144,7 +325,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
 
     if (keyToUse.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ကျေးဇူးပြု၍ Key ကို အရင်ထည့်ပါ!')),
+        SnackBar(content: Text(widget.isEnglish ? 'Please insert a key first!' : 'ကျေးဇူးပြု၍ Key ကို အရင်ထည့်ပါ!')),
       );
       return;
     }
@@ -152,7 +333,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     if (await flutterV2ray.requestPermission()) {
       setState(() {
         isConnecting = true;
-        connectionStatus = 'ချိတ်ဆက်နေသည်...';
       });
 
       try {
@@ -161,7 +341,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         if (serverRemark.isEmpty) serverRemark = "Z-VPN Server";
 
         if (keyToUse.startsWith("ssconf://")) {
-          throw Exception("ssconf:// အစား ss:// ဖြင့်စသော Outline Key ကိုသာ အသုံးပြုပါ။");
+          throw Exception("ssconf error");
         }
 
         if (keyToUse.startsWith("vmess://") || keyToUse.startsWith("vless://") || keyToUse.startsWith("ss://") || keyToUse.startsWith("trojan://")) {
@@ -169,32 +349,50 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
           jsonConfig = parsedNode.getFullConfiguration();
         }
 
+        // ရှောင်ကွင်းထားသော App များကို Storage မှ ပြန်ယူခြင်း
+        final prefs = await SharedPreferences.getInstance();
+        List<String> bypassedApps = prefs.getStringList('bypassed_apps') ?? [];
+
         await flutterV2ray.startV2Ray(
           remark: serverRemark,
           config: jsonConfig,
+          bypassSubnets: ["0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8", "169.254.0.0/16", "172.16.0.0/12", "192.0.0.0/24", "192.0.2.0/24", "192.168.0.0/16"],
+          // ဤနေရာတွင် ရှောင်ကွင်းမည့် App များကို အင်ဂျင်သို့ ပေးပို့ပါသည်
+          proxyOnly: false,
+          bypassPackages: bypassedApps,
         );
       } catch (e) {
         setState(() {
           isConnecting = false;
-          connectionStatus = 'ချိတ်ဆက်မှု မအောင်မြင်ပါ';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().contains("ssconf://") ? "ss:// ဖြင့်စသော Key ကိုသာ ထည့်ပါ" : 'Key မှားယွင်းနေပါသည် (သို့) ချိတ်ဆက်၍မရပါ')),
+          SnackBar(content: Text(e.toString().contains("ssconf error") 
+            ? (widget.isEnglish ? "Use ss:// Outline key instead of ssconf://" : "ss:// ဖြင့်စသော Key ကိုသာ ထည့်ပါ") 
+            : (widget.isEnglish ? 'Invalid Key or Connection Failed' : 'Key မှားယွင်းနေပါသည် (သို့) ချိတ်ဆက်၍မရပါ'))),
         );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('VPN အသုံးပြုခွင့် ပေးရန် လိုအပ်ပါသည်!')),
+        SnackBar(content: Text(widget.isEnglish ? 'VPN Permission is required!' : 'VPN အသုံးပြုခွင့် ပေးရန် လိုအပ်ပါသည်!')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final boxColor = isDark ? const Color(0xFF232B40) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final hintColor = isDark ? Colors.grey.shade600 : Colors.grey.shade400;
+
+    String connectionStatus = isConnected 
+        ? (widget.isEnglish ? 'Connected' : 'ချိတ်ဆက်ထားပါသည်') 
+        : (isConnecting 
+            ? (widget.isEnglish ? 'Connecting...' : 'ချိတ်ဆက်နေသည်...') 
+            : (widget.isEnglish ? 'Not Connected' : 'ချိတ်ဆက်ထားခြင်းမရှိပါ'));
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         leading: const Icon(Icons.security, color: Colors.blueAccent),
         title: const Text(
           'Z VPN',
@@ -215,8 +413,13 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.grey),
-            onPressed: () {},
+            icon: Icon(Icons.settings, color: isDark ? Colors.grey : Colors.black54),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsScreen(isEnglish: widget.isEnglish)),
+              );
+            },
           )
         ],
       ),
@@ -228,9 +431,10 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
             Container(
               height: 50,
               decoration: BoxDecoration(
-                color: const Color(0xFF232B40),
+                color: boxColor,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 1.5),
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 5, spreadRadius: 1)],
               ),
               child: Row(
                 children: [
@@ -239,7 +443,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                       onTap: () {
                         setState(() {
                           isOutlineSelected = true;
-                          _updateDisplayKey(); // Outline Tab သို့ ပြောင်းပါက Outline Key ပြမည်
+                          _updateDisplayKey();
                         });
                       },
                       child: Container(
@@ -251,7 +455,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                         child: Text(
                           'Outline Key', 
                           style: TextStyle(
-                            color: isOutlineSelected ? Colors.white : Colors.grey,
+                            color: isOutlineSelected ? Colors.white : (isDark ? Colors.grey : Colors.black54),
                             fontWeight: FontWeight.bold
                           )
                         ),
@@ -263,7 +467,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                       onTap: () {
                         setState(() {
                           isOutlineSelected = false;
-                          _updateDisplayKey(); // V2Ray Tab သို့ ပြောင်းပါက V2Ray Key ပြမည်
+                          _updateDisplayKey();
                         });
                       },
                       child: Container(
@@ -275,7 +479,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                         child: Text(
                           'V2Ray Key',
                           style: TextStyle(
-                            color: !isOutlineSelected ? Colors.white : Colors.grey,
+                            color: !isOutlineSelected ? Colors.white : (isDark ? Colors.grey : Colors.black54),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -288,20 +492,21 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
             const SizedBox(height: 20),
             Row(
               children: [
-                const Icon(Icons.vpn_key, size: 16, color: Colors.grey),
+                Icon(Icons.vpn_key, size: 16, color: isDark ? Colors.grey : Colors.black54),
                 const SizedBox(width: 8),
                 Text(
-                  isOutlineSelected ? 'ss:// (သို့) Outline Key' : 'vmess:// (သို့) vless://',
-                  style: const TextStyle(color: Colors.grey),
+                  isOutlineSelected ? 'ss:// (or) Outline Key' : 'vmess:// (or) vless://',
+                  style: TextStyle(color: isDark ? Colors.grey : Colors.black54),
                 ),
               ],
             ),
             const SizedBox(height: 10),
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF232B40),
+                color: boxColor,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1.0),
+                boxShadow: isDark ? [] : [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 5, spreadRadius: 1)],
               ),
               child: Column(
                 children: [
@@ -319,7 +524,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                     controller: _keyController,
                     maxLines: _actualKey.isNotEmpty ? 1 : 4,
                     style: TextStyle(
-                      color: _actualKey.isNotEmpty ? Colors.amber : Colors.white, 
+                      color: _actualKey.isNotEmpty ? (isDark ? Colors.amber : Colors.blue.shade800) : textColor, 
                       fontWeight: _actualKey.isNotEmpty ? FontWeight.bold : FontWeight.normal,
                       fontSize: _actualKey.isNotEmpty ? 18 : 14,
                     ),
@@ -330,8 +535,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                         setState(() {
                           _actualKey = trimmed;
                         });
-                        _saveKeyToStorage(trimmed); // အသစ်ထည့်လိုက်သော Key ကို Storage ထဲ သိမ်းမည်
-                        
+                        _saveKeyToStorage(trimmed);
                         String name = _extractName(trimmed);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           _keyController.text = name;
@@ -341,21 +545,21 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                         setState(() {
                           _actualKey = "";
                         });
-                        _saveKeyToStorage(""); // ရှင်းလင်းလိုက်ပါက Storage ထဲမှပါ ဖျက်မည်
+                        _saveKeyToStorage("");
                       }
                     },
                     decoration: InputDecoration(
-                      hintText: 'ဒီနေရာမှာ Key ကို Paste ချပါ...',
-                      hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                      hintText: widget.isEnglish ? 'Paste your Key here...' : 'ဒီနေရာမှာ Key ကို Paste ချပါ...',
+                      hintStyle: TextStyle(color: hintColor, fontSize: 14),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                       suffixIcon: _actualKey.isNotEmpty 
                         ? IconButton(
-                            icon: const Icon(Icons.cancel, color: Colors.grey),
+                            icon: Icon(Icons.cancel, color: isDark ? Colors.grey : Colors.black54),
                             onPressed: () {
                               setState(() {
                                 _actualKey = "";
-                                _saveKeyToStorage(""); // ခလုတ်နှိပ်၍ ဖျက်ပါက Storage ထဲမှပါ ဖျက်မည်
+                                _saveKeyToStorage("");
                               });
                               _keyController.clear();
                             },
@@ -370,7 +574,7 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
             Text(
               connectionStatus,
               style: TextStyle(
-                color: isConnected ? Colors.greenAccent : (isConnecting ? Colors.amber : Colors.grey), 
+                color: isConnected ? Colors.greenAccent.shade400 : (isConnecting ? Colors.amber : (isDark ? Colors.grey : Colors.black54)), 
                 fontSize: 18,
                 fontWeight: isConnected ? FontWeight.bold : FontWeight.normal,
               ),
@@ -400,9 +604,9 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                     else if (isConnected) ...[
                       const Icon(Icons.power_settings_new, size: 50, color: Colors.white),
                       const SizedBox(height: 10),
-                      const Text(
-                        'ဖြတ်တောက်မည်',
-                        style: TextStyle(
+                      Text(
+                        widget.isEnglish ? 'DISCONNECT' : 'ဖြတ်တောက်မည်',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -411,9 +615,9 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                     ] else ...[
                       const Icon(Icons.bolt, size: 50, color: Colors.white),
                       const SizedBox(height: 10),
-                      const Text(
-                        'ချိတ်ဆက်မည်',
-                        style: TextStyle(
+                      Text(
+                        widget.isEnglish ? 'CONNECT' : 'ချိတ်ဆက်မည်',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -429,27 +633,27 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF161C2D),
+        backgroundColor: isDark ? const Color(0xFF161C2D) : Colors.white,
         selectedItemColor: Colors.blueAccent,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: isDark ? Colors.grey : Colors.black54,
         currentIndex: _bottomNavIndex,
         onTap: (index) {
           setState(() {
             _bottomNavIndex = index;
           });
         },
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.security),
+            icon: const Icon(Icons.security),
             label: 'VPN',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.dns),
-            label: 'ဆာဗာများ',
+            icon: const Icon(Icons.dns),
+            label: widget.isEnglish ? 'Servers' : 'ဆာဗာများ',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.language),
-            label: 'ဘရောက်ဇာ',
+            icon: const Icon(Icons.language),
+            label: widget.isEnglish ? 'Browser' : 'ဘရောက်ဇာ',
           ),
         ],
       ),
