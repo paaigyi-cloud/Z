@@ -1,33 +1,16 @@
-name: Build Flutter APK
+name: z_vpn
+description: A new Flutter VPN project.
+publish_to: 'none'
+version: 1.0.0+1
 
-on:
-  push:
-    branches:
-      - main
+environment:
+  sdk: ">=3.3.0 <4.0.0"
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  flutter_v2ray: ^1.0.10
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.19.0"
-          channel: "stable"
-
-      # ဒီအဆင့်က လိုအပ်တဲ့ android folder ကို အလိုအလျောက် ဆောက်ပေးပြီး Android Version ပြင်ပေးပါမယ်
-      - run: |
-          flutter create . --project-name=z_vpn --platforms=android
-          git checkout lib/main.dart pubspec.yaml
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/minSdkVersion 16/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/minSdkVersion 19/minSdkVersion 21/g' android/app/build.gradle
-
-      - run: flutter pub get
-      - run: flutter build apk --release
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Z-VPN-Release-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+flutter:
+  uses-material-design: true
