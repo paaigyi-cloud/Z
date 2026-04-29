@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_v2ray/flutter_v2ray.dart';
 
@@ -32,10 +33,13 @@ class VpnHomeScreen extends StatefulWidget {
 
 class _VpnHomeScreenState extends State<VpnHomeScreen> {
   int _bottomNavIndex = 0;
-  bool isOutlineSelected = false; 
+  bool isOutlineSelected = true; 
   bool isConnecting = false;
   bool isConnected = false;
   String connectionStatus = 'ချိတ်ဆက်ထားခြင်းမရှိပါ';
+
+  // တကယ့် Key အရှည်ကြီးကို နောက်ကွယ်မှာ ဖွက်ပြီး သိမ်းထားမည့်နေရာ
+  String _actualKey = ""; 
 
   final TextEditingController _keyController = TextEditingController();
   late FlutterV2ray flutterV2ray;
@@ -67,15 +71,42 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
     await flutterV2ray.initializeV2Ray();
   }
 
+  // Key ထဲမှ ဆာဗာနာမည်ကို အလိုအလျောက် ဆွဲထုတ်မည့် Function
+  String _extractName(String key) {
+    try {
+      if (key.contains("#")) {
+        return Uri.decodeComponent(key.substring(key.indexOf("#") + 1));
+      } else if (key.startsWith("vmess://")) {
+        String base64Str = key.substring(8);
+        base64Str = base64Str.padRight(base64Str.length + (4 - base64Str.length % 4) % 4, '=');
+        String decoded = utf8.decode(base64Decode(base64Str));
+        Map<String, dynamic> json = jsonDecode(decoded);
+        if (json.containsKey("ps") && json["ps"].toString().isNotEmpty) {
+          return json["ps"];
+        }
+      }
+    } catch (e) {
+      // ဘာသာပြန်၍မရပါက Default အတိုင်းထားမည်
+    }
+    
+    if (key.startsWith("ss://")) return "Outline Server";
+    if (key.startsWith("vless://")) return "V2Ray (VLESS) Server";
+    if (key.startsWith("vmess://")) return "V2Ray (VMess) Server";
+    if (key.startsWith("trojan://")) return "Trojan Server";
+    
+    return "Z-VPN Server";
+  }
+
   void _toggleConnection() async {
     if (isConnected) {
       await flutterV2ray.stopV2Ray();
       return;
     }
 
-    String key = _keyController.text.trim();
+    // ဖွက်ထားသော key ရှိလျှင် ၎င်းကိုသုံးမည်၊ မရှိလျှင် text box ထဲကစာကို သုံးမည်
+    String keyToUse = _actualKey.isNotEmpty ? _actualKey : _keyController.text.trim();
 
-    if (key.isEmpty) {
+    if (keyToUse.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('ကျေးဇူးပြု၍ Key ကို အရင်ထည့်ပါ!')),
       );
@@ -89,26 +120,21 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
       });
 
       try {
-        String jsonConfig = key;
-        String serverRemark = "Z-VPN Server";
+        String jsonConfig = keyToUse;
+        String serverRemark = _keyController.text.trim();
+        if (serverRemark.isEmpty) serverRemark = "Z-VPN Server";
 
-        if (key.startsWith("ssconf://")) {
+        if (keyToUse.startsWith("ssconf://")) {
           throw Exception("ssconf:// အစား ss:// ဖြင့်စသော Outline Key ကိုသာ အသုံးပြုပါ။");
         }
 
-        if (key.startsWith("vmess://") || key.startsWith("vless://") || key.startsWith("ss://") || key.startsWith("trojan://")) {
-          var parsedNode = FlutterV2ray.parseFromURL(key);
+        if (keyToUse.startsWith("vmess://") || keyToUse.startsWith("vless://") || keyToUse.startsWith("ss://") || keyToUse.startsWith("trojan://")) {
+          var parsedNode = FlutterV2ray.parseFromURL(keyToUse);
           jsonConfig = parsedNode.getFullConfiguration();
-          
-          if (key.startsWith("ss://")) {
-            serverRemark = "Outline Server";
-          } else {
-            serverRemark = "V2Ray Server";
-          }
         }
 
         await flutterV2ray.startV2Ray(
-          remark: serverRemark,
+          remark: serverRemark, // နာမည်အဖြစ် ပြောင်းထားသော စာသားကို အင်ဂျင်သို့ ပေးပို့မည်
           config: jsonConfig,
         );
       } catch (e) {
@@ -253,13 +279,49 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                   ),
                   TextField(
                     controller: _keyController,
-                    maxLines: 4,
-                    style: const TextStyle(color: Colors.white),
+                    maxLines: _actualKey.isNotEmpty ? 1 : 4, // Key ထည့်လိုက်ရင် (၁) ကြောင်းတည်း ဖြစ်သွားမည်
+                    style: TextStyle(
+                      color: _actualKey.isNotEmpty ? Colors.amber : Colors.white, 
+                      fontWeight: _actualKey.isNotEmpty ? FontWeight.bold : FontWeight.normal,
+                      fontSize: _actualKey.isNotEmpty ? 18 : 14,
+                    ),
+                    textAlign: _actualKey.isNotEmpty ? TextAlign.center : TextAlign.start, // နာမည်ကို အလယ်တွင်ထားမည်
+                    onChanged: (value) {
+                      String trimmed = value.trim();
+                      // Key အစစ် Paste ချလိုက်ကြောင်း စစ်ဆေးခြင်း
+                      if (trimmed.startsWith("ss://") || trimmed.startsWith("vmess://") || trimmed.startsWith("vless://") || trimmed.startsWith("trojan://")) {
+                        setState(() {
+                          _actualKey = trimmed;
+                        });
+                        String name = _extractName(trimmed);
+                        // Key အစား နာမည်ကို အလိုအလျောက် အစားထိုးပြသမည်
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _keyController.text = name;
+                          _keyController.selection = TextSelection.fromPosition(TextPosition(offset: name.length));
+                        });
+                      } else if (trimmed.isEmpty) {
+                        setState(() {
+                          _actualKey = "";
+                        });
+                      }
+                    },
                     decoration: InputDecoration(
                       hintText: 'ဒီနေရာမှာ Key ကို Paste ချပါ...',
-                      hintStyle: TextStyle(color: Colors.grey.shade600),
+                      hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(16),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                      // Key ဝင်သွားပါက ဖျက်ရန် (X) ခလုတ်လေး ပေါ်လာမည်
+                      suffixIcon: _actualKey.isNotEmpty 
+                        ? IconButton(
+                            icon: const Icon(Icons.cancel, color: Colors.grey),
+                            onPressed: () {
+                              setState(() {
+                                _actualKey = "";
+                              });
+                              _keyController.clear();
+                            },
+                          )
+                        : null,
                     ),
                   ),
                 ],
