@@ -855,7 +855,6 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
         currentIndex: _bottomNavIndex,
         onTap: (index) async {
           if (index == 1) {
-            // Telegram ကို နှိပ်လျှင် Group သို့ ဖွင့်ပေးမည်
             final Uri url = Uri.parse('https://t.me/zvpnt');
             if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
               if (mounted) {
@@ -865,14 +864,18 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
               }
             }
           } else if (index == 2) {
-            // Browser ကို "In-App WebView" (App တွင်း လုံခြုံရေး ဘရောက်ဇာ) ဖြင့် ဖွင့်မည်
+            // Browser ကို "Desktop Site" (Windows PC) ပုံစံဖြင့် ဖွင့်မည်
             final Uri url = Uri.parse('https://www.google.com');
             if (!await launchUrl(
               url, 
-              mode: LaunchMode.inAppWebView, // ဤနေရာတွင် In-App WebView သို့ ပြောင်းထားပါသည်
+              mode: LaunchMode.inAppWebView,
               webViewConfiguration: const WebViewConfiguration(
                 enableJavaScript: true,
                 enableDomStorage: true,
+                // ကွန်ပျူတာ (Windows/Chrome) မှ ဝင်သကဲ့သို့ ဟန်ဆောင်ပေးမည့်စာကြောင်း
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
               ),
             )) {
               if (mounted) {
