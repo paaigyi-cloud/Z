@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// V2Ray အင်ဂျင်ကို လှမ်းခေါ်ထားခြင်း
+import 'package:flutter_v2ray/flutter_v2ray.dart';
 
 void main() {
   runApp(const ZVpnApp());
@@ -31,12 +33,49 @@ class VpnHomeScreen extends StatefulWidget {
 
 class _VpnHomeScreenState extends State<VpnHomeScreen> {
   int _bottomNavIndex = 0;
-  bool isOutlineSelected = true;
+  bool isOutlineSelected = false; // V2Ray ကို အဓိကထားထားပါသည်
   bool isConnecting = false;
+  bool isConnected = false;
+  String connectionStatus = 'ချိတ်ဆက်ထားခြင်းမရှိပါ';
 
   final TextEditingController _keyController = TextEditingController();
+  late FlutterV2ray flutterV2ray;
 
-  void _connectVpn() async {
+  @override
+  void initState() {
+    super.initState();
+    // V2Ray အင်ဂျင်ကို အသင့်ပြင်ခြင်း
+    flutterV2ray = FlutterV2ray(
+      onStatusChanged: (status) {
+        if (mounted) {
+          setState(() {
+            if (status.state == "CONNECTED") {
+              isConnecting = false;
+              isConnected = true;
+              connectionStatus = 'ချိတ်ဆက်ထားပါသည်';
+            } else if (status.state == "DISCONNECTED") {
+              isConnecting = false;
+              isConnected = false;
+              connectionStatus = 'ချိတ်ဆက်ထားခြင်းမရှိပါ';
+            }
+          });
+        }
+      },
+    );
+    _initV2Ray();
+  }
+
+  Future<void> _initV2Ray() async {
+    await flutterV2ray.initializeV2Ray();
+  }
+
+  void _toggleConnection() async {
+    // ချိတ်ဆက်ထားပြီးသားဆိုရင် ဖြတ်တောက်မည်
+    if (isConnected) {
+      await flutterV2ray.stopV2Ray();
+      return;
+    }
+
     String key = _keyController.text.trim();
 
     if (key.isEmpty) {
@@ -46,20 +85,33 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
       return;
     }
 
-    setState(() {
-      isConnecting = true;
-    });
+    // ဖုန်း၏ VPN Permission တောင်းခံခြင်း
+    if (await flutterV2ray.requestPermission()) {
+      setState(() {
+        isConnecting = true;
+        connectionStatus = 'ချိတ်ဆက်နေသည်...';
+      });
 
-    // ချိတ်ဆက်နေပုံ စမ်းသပ်ရန် ၃ စက္ကန့် စောင့်ခိုင်းထားခြင်း
-    await Future.delayed(const Duration(seconds: 3));
-
-    setState(() {
-      isConnecting = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('VPN အင်ဂျင် မချိတ်ဆက်ရသေးပါ!')),
-    );
+      try {
+        // တကယ့် VPN စတင်ချိတ်ဆက်ခြင်း
+        await flutterV2ray.startV2Ray(
+          remark: "Z-VPN Server",
+          config: key,
+        );
+      } catch (e) {
+        setState(() {
+          isConnecting = false;
+          connectionStatus = 'ချိတ်ဆက်မှု မအောင်မြင်ပါ';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Key မှားယွင်းနေပါသည် (သို့) ချိတ်ဆက်၍မရပါ')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('VPN အသုံးပြုခွင့် ပေးရန် လိုအပ်ပါသည်!')),
+      );
+    }
   }
 
   @override
@@ -99,13 +151,12 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
           children: [
             const SizedBox(height: 20),
             
-            // Key Type Toggle Button (ဘောင်ကွတ်ထားသော ဒီဇိုင်းအသစ်)
+            // Key Type Toggle Button
             Container(
               height: 50,
               decoration: BoxDecoration(
                 color: const Color(0xFF232B40),
                 borderRadius: BorderRadius.circular(10),
-                // ဤနေရာတွင် အပြာရောင်ဘောင် ထည့်ထားပါသည်
                 border: Border.all(color: Colors.blueAccent.withOpacity(0.5), width: 1.5),
               ),
               child: Row(
@@ -120,10 +171,16 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: isOutlineSelected ? Colors.blueAccent : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8), // ဘောင်အထဲဝင်ရန် နည်းနည်းလျှော့ထားသည်
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         alignment: Alignment.center,
-                        child: const Text('Outline Key', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'Outline Key', 
+                          style: TextStyle(
+                            color: isOutlineSelected ? Colors.white : Colors.grey,
+                            fontWeight: FontWeight.bold
+                          )
+                        ),
                       ),
                     ),
                   ),
@@ -166,17 +223,15 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
             ),
             const SizedBox(height: 10),
             
-            // Input Text Field (အပေါ်လိုင်းအထူ နှင့် ဘောင်ဒီဇိုင်းအသစ်)
+            // Input Text Field
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF232B40),
                 borderRadius: BorderRadius.circular(10),
-                // ဘေးပတ်ပတ်လည် ခဲရောင်ဘောင် အပါးလေး
                 border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1.0),
               ),
               child: Column(
                 children: [
-                  // အစ်ကိုပြထားသောပုံမှ အပေါ်ဘက်ရှိ အရောင်လိုင်းလေး
                   Container(
                     height: 4,
                     decoration: const BoxDecoration(
@@ -204,24 +259,26 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
             
             const SizedBox(height: 40),
             Text(
-              isConnecting ? 'ချိတ်ဆက်နေသည်...' : 'ချိတ်ဆက်ထားခြင်းမရှိပါ',
+              connectionStatus,
               style: TextStyle(
-                color: isConnecting ? Colors.amber : Colors.grey, 
-                fontSize: 18
+                color: isConnected ? Colors.greenAccent : (isConnecting ? Colors.amber : Colors.grey), 
+                fontSize: 18,
+                fontWeight: isConnected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             const Spacer(),
             GestureDetector(
-              onTap: isConnecting ? null : _connectVpn,
+              onTap: isConnecting ? null : _toggleConnection,
               child: Container(
                 width: 150,
                 height: 150,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isConnecting ? Colors.grey : Colors.blueAccent,
+                  // ချိတ်ဆက်ထားရင် အနီရောင်ပြောင်းမည်
+                  color: isConnected ? Colors.redAccent : (isConnecting ? Colors.grey : Colors.blueAccent),
                   boxShadow: [
                     BoxShadow(
-                      color: isConnecting ? Colors.transparent : Colors.blueAccent.withOpacity(0.4),
+                      color: isConnected ? Colors.redAccent.withOpacity(0.4) : (isConnecting ? Colors.transparent : Colors.blueAccent.withOpacity(0.4)),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -232,7 +289,18 @@ class _VpnHomeScreenState extends State<VpnHomeScreen> {
                   children: [
                     if (isConnecting)
                       const CircularProgressIndicator(color: Colors.white)
-                    else ...[
+                    else if (isConnected) ...[
+                      const Icon(Icons.power_settings_new, size: 50, color: Colors.white),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'ဖြတ်တောက်မည်',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ] else ...[
                       const Icon(Icons.bolt, size: 50, color: Colors.white),
                       const SizedBox(height: 10),
                       const Text(
